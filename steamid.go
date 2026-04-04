@@ -8,7 +8,7 @@ import (
 func (c *SteamClient) resolveVanity(ctx context.Context, vanity string) (string, error) {
 	steamIDData, err := c.fetchSteamID64(ctx, vanity)
 	if err != nil {
-		return "", fmt.Errorf("Failed fetching steamid64 %w", err)
+		return "", fmt.Errorf("Failed fetching steamid64: %w", err)
 	}
 
 	response, _ := steamIDData["response"].(map[string]any)

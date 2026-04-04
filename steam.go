@@ -23,7 +23,7 @@ func NewSteamClient(apiKey string) *SteamClient {
 func (c *SteamClient) getSteamProfile(ctx context.Context, steamID string) (*SteamProfile, error) {
 	userData, err := c.fetchSteamUser(ctx, steamID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed fetching user data %w", err)
+		return nil, fmt.Errorf("Failed fetching user data: %w", err)
 	}
 
 	response, _ := userData["response"].(map[string]any)
@@ -35,7 +35,7 @@ func (c *SteamClient) getSteamProfile(ctx context.Context, steamID string) (*Ste
 
 	gamesData, err := c.fetchSteamGames(ctx, steamID)
 	if err != nil {
-		return nil, fmt.Errorf("Failed fetching games data %w", err)
+		return nil, fmt.Errorf("Failed fetching games data: %w", err)
 	}
 
 	gamesResponse, _ := gamesData["response"].(map[string]any)

@@ -42,7 +42,7 @@ func NewLeetifyClient(apiKey string) *LeetifyClient {
 func (c *LeetifyClient) getProfile(ctx context.Context, steamId string) (*LeetifyProfile, error) {
 	playerData, err := c.fetchPlayerData(ctx, steamId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed fetching player data %w", err)
+		return nil, fmt.Errorf("Failed fetching player data: %w", err)
 	}
 
 	name, _ := playerData["name"].(string)

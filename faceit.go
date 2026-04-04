@@ -40,7 +40,7 @@ func NewFaceitClient(apiKey string) *FaceitClient {
 func (c *FaceitClient) getProfile(ctx context.Context, steamId string) (*FaceitProfile, error) {
 	playerData, err := c.fetchPlayerData(ctx, steamId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed fetching player data %w", err)
+		return nil, fmt.Errorf("Failed fetching player data: %w", err)
 	}
 
 	playerId, _ := playerData["player_id"].(string)
@@ -61,7 +61,7 @@ func (c *FaceitClient) getProfile(ctx context.Context, steamId string) (*FaceitP
 
 	playerStats, err := c.fetchPlayerStats(ctx, playerId)
 	if err != nil {
-		return nil, fmt.Errorf("Failed fetching player stats %w", err)
+		return nil, fmt.Errorf("Failed fetching player stats: %w", err)
 	}
 
 	lifetime, _ := playerStats["lifetime"].(map[string]any)
