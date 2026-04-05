@@ -28,6 +28,9 @@ func (c *SteamClient) getSteamProfile(ctx context.Context, steamID string) (*Ste
 
 	response, _ := userData["response"].(map[string]any)
 	players, _ := response["players"].([]any)
+	if len(players) == 0 {
+		return nil, fmt.Errorf("Failed to find steam profile with id: %s", steamID)
+	}
 	player, _ := players[0].(map[string]any)
 	name, _ := player["personaname"].(string)
 	rawRegistered, _ := player["timecreated"].(float64)
