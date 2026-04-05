@@ -21,8 +21,11 @@ type Server struct {
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil {
-		fmt.Printf("Failed to load .env file: %v", err)
+	// try .env file only if it exists (fixes docker throwing an error)
+	if _, err := os.Stat(".env"); err == nil {
+	  if err := godotenv.Load(); err != nil {
+	    fmt.Printf("Failed to load .env file: %v\n", err)
+	  }
 	}
 
 	c := &Server{
