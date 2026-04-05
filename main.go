@@ -35,8 +35,8 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"https://steamcommunity.com"},
-		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
 		AllowCredentials: false,
 		MaxAge:           300,
