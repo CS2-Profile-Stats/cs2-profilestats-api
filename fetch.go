@@ -8,6 +8,15 @@ import (
 	"net/http"
 )
 
+type APIError struct {
+  StatusCode int
+  Body       string
+}
+
+func (e *APIError) Error() string {
+  return fmt.Sprintf("Error %d: %s", e.StatusCode, e.Body)
+}
+
 type Fetcher struct {
 	apiKey     string
 	authHeader string
@@ -40,7 +49,8 @@ func (f *Fetcher) fetch(ctx context.Context, url string) (map[string]any, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Failed with status: %d", resp.StatusCode)
+    body, _ := io.ReadAll(resp.Body)
+    return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	body, err := io.ReadAll(resp.Body)

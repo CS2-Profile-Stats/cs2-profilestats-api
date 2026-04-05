@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -55,7 +56,7 @@ func (s *Server) handleSteam(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := s.steam.getSteamProfile(r.Context(), steamID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		writeApiError(w, err)
 		return
 	}
 
@@ -68,7 +69,7 @@ func (s *Server) handleSteamId(w http.ResponseWriter, r *http.Request) {
 
 	steamID, err := s.steam.resolveVanity(r.Context(), vanity)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		writeApiError(w, err)
 		return
 	}
 
@@ -81,7 +82,7 @@ func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := s.leetify.getProfile(r.Context(), steamID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		writeApiError(w, err)
 		return
 	}
 
@@ -94,7 +95,7 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := s.faceit.getProfile(r.Context(), steamID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, err)
+		writeApiError(w, err)
 		return
 	}
 
@@ -109,4 +110,19 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)
+}
+
+func writeApiError(w http.ResponseWriter, err error) {
+  if apiErr, ok := errors.AsType[*APIError](err); ok {
+    switch apiErr.StatusCode {
+    case http.StatusNotFound:
+      writeError(w, http.StatusNotFound, err)
+    case http.StatusTooManyRequests:
+      writeError(w, http.StatusTooManyRequests, err)
+    default:
+      writeError(w, http.StatusBadGateway, err)
+    }
+    return
+  }
+  writeError(w, http.StatusInternalServerError, err)
 }
