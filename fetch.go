@@ -13,8 +13,20 @@ type APIError struct {
   Body       string
 }
 
+type APIErrorBody struct {
+  Errors []APIErrorContent `json:"errors"`
+}
+
+type APIErrorContent struct {
+  Message string `json:"message"`
+}
+
 func (e *APIError) Error() string {
-  return fmt.Sprintf("Error %d: %s", e.StatusCode, e.Body)
+  var body APIErrorBody
+  if err := json.Unmarshal([]byte(e.Body), &body); err == nil && len(body.Errors) > 0 {
+    return body.Errors[0].Message
+  }
+  return fmt.Sprintf("Error %d", e.StatusCode)
 }
 
 type Fetcher struct {

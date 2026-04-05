@@ -151,11 +151,11 @@ func writeApiError(w http.ResponseWriter, err error) {
   if apiErr, ok := errors.AsType[*APIError](err); ok {
     switch apiErr.StatusCode {
     case http.StatusNotFound:
-      writeError(w, http.StatusNotFound, err)
+      writeError(w, http.StatusNotFound, apiErr)
     case http.StatusTooManyRequests:
-      writeError(w, http.StatusTooManyRequests, err)
+      writeError(w, http.StatusTooManyRequests, apiErr)
     default:
-      writeError(w, http.StatusBadGateway, err)
+      writeError(w, http.StatusBadGateway, apiErr)
     }
     return
   }
