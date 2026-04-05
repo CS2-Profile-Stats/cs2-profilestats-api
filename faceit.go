@@ -16,6 +16,7 @@ type FaceitProfile struct {
 	ProfileUrl string      `json:"profile_url"`
 	Level      int         `json:"level"`
 	Elo        int         `json:"elo"`
+	Ranking    int         `json:"ranking"`
 	Membership string      `json:"membership"`
 	Stats      FaceitStats `json:"stats"`
 }
@@ -52,6 +53,7 @@ func (c *FaceitClient) getProfile(ctx context.Context, steamId string) (*FaceitP
 	profileUrl := strings.Replace(rawProfileUrl, "{lang}", "en", 1)
 	games, _ := playerData["games"].(map[string]any)
 	cs2, _ := games["cs2"].(map[string]any)
+	region, _ := cs2["region"].(string)
 	rawLevel, _ := cs2["skill_level"].(float64)
 	level := int(rawLevel)
 	rawElo, _ := cs2["faceit_elo"].(float64)
@@ -88,6 +90,15 @@ func (c *FaceitClient) getProfile(ctx context.Context, steamId string) (*FaceitP
 	}
 	avgKills := int(totalAvgKills / float64(len(segments)))
 
+	playerRanking, err := c.fetchPlayerRanking(ctx, region, playerId)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching player ranking: %w", err)
+	}
+
+	rawRanking := playerRanking["position"].(float64)
+	ranking := int(rawRanking)
+
+
 	return &FaceitProfile{
 		PlayerID:   playerId,
 		Nickname:   nickname,
@@ -97,6 +108,7 @@ func (c *FaceitClient) getProfile(ctx context.Context, steamId string) (*FaceitP
 		ProfileUrl: profileUrl,
 		Level:      level,
 		Elo:        elo,
+		Ranking:    ranking,
 		Membership: membership,
 		Stats: FaceitStats{
 			Matches:       matches,
@@ -116,5 +128,10 @@ func (c *FaceitClient) fetchPlayerData(ctx context.Context, steamID string) (map
 
 func (c *FaceitClient) fetchPlayerStats(ctx context.Context, playerID string) (map[string]any, error) {
 	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/stats/cs2", playerID)
+	return c.fetch(ctx, url)
+}
+
+func (c *FaceitClient) fetchPlayerRanking(ctx context.Context, region string, playerID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/rankings/games/cs2/regions/%s/players/%s", region, playerID)
 	return c.fetch(ctx, url)
 }

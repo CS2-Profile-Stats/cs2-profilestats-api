@@ -12,6 +12,7 @@ type LeetifyProfile struct {
 }
 
 type LeetifyStats struct {
+	LeetifyRating    float64           `json:"leetify_rating"`
 	PremierRating    int               `json:"premier_rating"`
 	CompetitiveRanks []CompetitiveRank `json:"competitive_ranks"`
 	Matches          int               `json:"matches"`
@@ -47,6 +48,8 @@ func (c *LeetifyClient) getProfile(ctx context.Context, steamId string) (*Leetif
 
 	name, _ := playerData["name"].(string)
 	ranks, _ := playerData["ranks"].(map[string]any)
+	rawLeetifyRating, _ := ranks["leetify"].(float64)
+	leetifyRating := math.Round(rawLeetifyRating * 100) / 100
 	rawPremierRating, _ := ranks["premier"].(float64)
 	premierRating := int(rawPremierRating)
 	rawCompetitive := ranks["competitive"].([]any)
@@ -85,6 +88,7 @@ func (c *LeetifyClient) getProfile(ctx context.Context, steamId string) (*Leetif
 	return &LeetifyProfile{
 		Name: name,
 		Stats: LeetifyStats{
+			LeetifyRating:    leetifyRating,
 			PremierRating:    premierRating,
 			CompetitiveRanks: competitiveRanks,
 			Matches:          matches,
