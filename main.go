@@ -43,7 +43,6 @@ func main() {
 	r.Get("/api/stats/steam/{steamID}", c.handleSteam)
 	r.Get("/api/resolveVanity/{vanity}", c.handleSteamId)
 	fmt.Println("Running on port 8080")
-	http.ListenAndServe(":8080", r)
 	if err := http.ListenAndServe(":8080", r); err != nil {
 		fmt.Printf("Server error: %v", err)
 		os.Exit(1)
