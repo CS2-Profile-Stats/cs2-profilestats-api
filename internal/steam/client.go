@@ -107,11 +107,11 @@ func (c *Client) ResolveVanity(ctx context.Context, vanity string) (string, erro
 	}
 	response, ok := steamIDData["response"].(map[string]any)
 	if !ok {
-    return "", fmt.Errorf("missing response field")
+		return "", fmt.Errorf("missing response field")
 	}
 	steamID, ok := response["steamid"].(string)
 	if !ok {
-    return "", fmt.Errorf("Failed to resolve vanity: %s", vanity)
+		return "", fmt.Errorf("Failed to resolve vanity: %s", vanity)
 	}
 	return steamID, nil
 }

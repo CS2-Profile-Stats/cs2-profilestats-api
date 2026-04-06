@@ -103,16 +103,16 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeApiError(w http.ResponseWriter, err error) {
-  if apiErr, ok := errors.AsType[*fetcher.APIError](err); ok {
-    switch apiErr.StatusCode {
-    case http.StatusNotFound:
-      writeError(w, http.StatusNotFound, apiErr)
-    case http.StatusTooManyRequests:
-      writeError(w, http.StatusTooManyRequests, apiErr)
-    default:
-      writeError(w, http.StatusBadGateway, apiErr)
-    }
-    return
-  }
-  writeError(w, http.StatusInternalServerError, err)
+	if apiErr, ok := errors.AsType[*fetcher.APIError](err); ok {
+		switch apiErr.StatusCode {
+		case http.StatusNotFound:
+			writeError(w, http.StatusNotFound, apiErr)
+		case http.StatusTooManyRequests:
+			writeError(w, http.StatusTooManyRequests, apiErr)
+		default:
+			writeError(w, http.StatusBadGateway, apiErr)
+		}
+		return
+	}
+	writeError(w, http.StatusInternalServerError, err)
 }

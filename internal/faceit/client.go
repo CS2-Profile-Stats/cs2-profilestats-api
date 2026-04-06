@@ -48,7 +48,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	playerId := utils.GetString(playerData, "player_id")
 	if playerId == nil {
-    return nil, fmt.Errorf("player_id field is missing")
+		return nil, fmt.Errorf("player_id field is missing")
 	}
 
 	nickname := utils.GetString(playerData, "nickname")
@@ -59,83 +59,89 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	var profileUrl *string
 	if rawProfileUrl != nil {
-	  replaced := strings.Replace(*rawProfileUrl, "{lang}", "en", 1)
-	  profileUrl = &replaced
+		replaced := strings.Replace(*rawProfileUrl, "{lang}", "en", 1)
+		profileUrl = &replaced
 	}
 
 	var region *string
 	var level, elo *int
 	games, ok := playerData["games"].(map[string]any)
 	if ok {
-    cs2, ok := games["cs2"].(map[string]any)
-    if ok {
-      region = utils.GetString(cs2, "region")
-      level = utils.GetInt(cs2, "skill_level")
-      elo = utils.GetInt(cs2, "faceit_elo")
-    }
+		cs2, ok := games["cs2"].(map[string]any)
+		if ok {
+			region = utils.GetString(cs2, "region")
+			level = utils.GetInt(cs2, "skill_level")
+			elo = utils.GetInt(cs2, "faceit_elo")
+		}
 	}
 
 	var membership *string
 	memberships, ok := playerData["memberships"].([]any)
 	if ok && len(memberships) > 0 {
-    v, _ := memberships[0].(string)
-    membership = &v
+		v, _ := memberships[0].(string)
+		membership = &v
 	}
 
-  playerStats, err := c.fetchPlayerStats(ctx, *playerId)
-  if err != nil {
-    return nil, fmt.Errorf("Failed fetching player stats: %w", err)
-  }
+	playerStats, err := c.fetchPlayerStats(ctx, *playerId)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching player stats: %w", err)
+	}
 
-  lifetime, _ := playerStats["lifetime"].(map[string]any)
-  matches := utils.GetIntFromString(lifetime, "Matches")
-  kdRatio := utils.GetFloatFromString(lifetime, "Average K/D Ratio")
-  hsPercentage := utils.GetIntFromString(lifetime, "Average Headshots %")
-  winRate := utils.GetIntFromString(lifetime, "Win Rate %")
+	lifetime, _ := playerStats["lifetime"].(map[string]any)
+	matches := utils.GetIntFromString(lifetime, "Matches")
+	kdRatio := utils.GetFloatFromString(lifetime, "Average K/D Ratio")
+	hsPercentage := utils.GetIntFromString(lifetime, "Average Headshots %")
+	winRate := utils.GetIntFromString(lifetime, "Win Rate %")
 
-  var recentResults []*string
-  rawRecentResults, _ := lifetime["Recent Results"].([]any)
-  if len(rawRecentResults) > 0 {
-    recentResults = make([]*string, len(rawRecentResults))
-    for i, v := range rawRecentResults {
-      val, _ := v.(string)
-      var result string
-      if val == "1" {
-        result = "W"
-      } else {
-        result = "L"
-      }
-      recentResults[i] = &result
-    }
-  }
+	var recentResults []*string
+	rawRecentResults, _ := lifetime["Recent Results"].([]any)
+	if len(rawRecentResults) > 0 {
+		recentResults = make([]*string, len(rawRecentResults))
+		for i, v := range rawRecentResults {
+			val, _ := v.(string)
+			var result string
+			if val == "1" {
+				result = "W"
+			} else {
+				result = "L"
+			}
+			recentResults[i] = &result
+		}
+	}
 
-  segments, _ := playerStats["segments"].([]any)
-  totalAvgKills := 0.0
-  avgCount := 0
-  var avgKills *int
-  for _, s := range segments {
-    segment, ok := s.(map[string]any)
-    if !ok { continue }
-    stats, ok := segment["stats"].(map[string]any)
-    if !ok { continue }
-    avg := utils.GetFloatFromString(stats, "Average Kills")
-    if avg == nil { continue }
-    totalAvgKills += *avg
-    avgCount++
-  }
-  if avgCount > 0 {
-    v := int(totalAvgKills / float64(avgCount))
-    avgKills = &v
-  }
+	segments, _ := playerStats["segments"].([]any)
+	totalAvgKills := 0.0
+	avgCount := 0
+	var avgKills *int
+	for _, s := range segments {
+		segment, ok := s.(map[string]any)
+		if !ok {
+			continue
+		}
+		stats, ok := segment["stats"].(map[string]any)
+		if !ok {
+			continue
+		}
+		avg := utils.GetFloatFromString(stats, "Average Kills")
+		if avg == nil {
+			continue
+		}
+		totalAvgKills += *avg
+		avgCount++
+	}
+	if avgCount > 0 {
+		v := int(totalAvgKills / float64(avgCount))
+		avgKills = &v
+	}
 
 	var ranking *int
 
 	if region != nil {
-    playerRanking, err := c.fetchPlayerRanking(ctx, *region, *playerId)
-    if err != nil {
-      return nil, fmt.Errorf("Failed fetching player ranking: %w", err)
-    }
-    ranking = utils.GetInt(playerRanking, "position")
+		playerRanking, err := c.fetchPlayerRanking(ctx, *region, *playerId)
+		if err != nil {
+			return nil, fmt.Errorf("Failed fetching player ranking: %w", err)
+		}
+		ranking = utils.GetInt(playerRanking, "position")
 	}
 
 	return &Profile{
