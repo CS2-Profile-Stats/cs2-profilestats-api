@@ -1,64 +1,18 @@
-package main
+package server
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/cors"
-	"github.com/joho/godotenv"
+
+	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
 )
-
-type Server struct {
-	faceit  *FaceitClient
-	leetify *LeetifyClient
-	steam   *SteamClient
-	cache   *Cache
-}
-
-func main() {
-	// try .env file only if it exists (fixes docker throwing an error)
-	if _, err := os.Stat(".env"); err == nil {
-	  if err := godotenv.Load(); err != nil {
-	    fmt.Printf("Failed to load .env file: %v\n", err)
-	  }
-	}
-
-	c := &Server{
-		faceit:  NewFaceitClient(os.Getenv("FACEIT_API_KEY")),
-		leetify: NewLeetifyClient(os.Getenv("LEETIFY_API_KEY")),
-		steam:   NewSteamClient(os.Getenv("STEAM_API_KEY")),
-		cache:   NewCache(),
-	}
-
-	r := chi.NewRouter()
-
-	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"},
-		AllowedMethods:   []string{"GET"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
-		AllowCredentials: false,
-		MaxAge:           300,
-	}))
-
-	r.Get("/api/stats/faceit/{steamID}", c.handleFaceit)
-	r.Get("/api/stats/leetify/{steamID}", c.handleLeetify)
-	r.Get("/api/stats/steam/{steamID}", c.handleSteam)
-	r.Get("/api/resolveVanity/{vanity}", c.handleSteamId)
-	fmt.Println("Running on port 8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		fmt.Printf("Server error: %v", err)
-		os.Exit(1)
-	}
-}
 
 func (s *Server) handleSteam(w http.ResponseWriter, r *http.Request) {
 	steamID := chi.URLParam(r, "steamID")
-	w.Header().Set("Content-Type", "application/json")
 
 	cacheKey := "steam:" + steamID
 	if cached, ok := s.cache.Get(cacheKey); ok {
@@ -66,7 +20,7 @@ func (s *Server) handleSteam(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := s.steam.getSteamProfile(r.Context(), steamID)
+	profile, err := s.steam.GetProfile(r.Context(), steamID)
 	if err != nil {
 		writeApiError(w, err)
 		return
@@ -87,7 +41,7 @@ func (s *Server) handleSteamId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	steamID, err := s.steam.resolveVanity(r.Context(), vanity)
+	steamID, err := s.steam.ResolveVanity(r.Context(), vanity)
 	if err != nil {
 		writeApiError(w, err)
 		return
@@ -100,7 +54,6 @@ func (s *Server) handleSteamId(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 	steamID := chi.URLParam(r, "steamID")
-	w.Header().Set("Content-Type", "application/json")
 
 	cacheKey := "leetify:" + steamID
 	if cached, ok := s.cache.Get(cacheKey); ok {
@@ -108,7 +61,7 @@ func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := s.leetify.getProfile(r.Context(), steamID)
+	profile, err := s.leetify.GetProfile(r.Context(), steamID)
 	if err != nil {
 		writeApiError(w, err)
 		return
@@ -121,7 +74,6 @@ func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 	steamID := chi.URLParam(r, "steamID")
-	w.Header().Set("Content-Type", "application/json")
 
 	cacheKey := "faceit:" + steamID
 	if cached, ok := s.cache.Get(cacheKey); ok {
@@ -129,7 +81,7 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	profile, err := s.faceit.getProfile(r.Context(), steamID)
+	profile, err := s.faceit.GetProfile(r.Context(), steamID)
 	if err != nil {
 		writeApiError(w, err)
 		return
@@ -151,7 +103,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeApiError(w http.ResponseWriter, err error) {
-  if apiErr, ok := errors.AsType[*APIError](err); ok {
+  if apiErr, ok := errors.AsType[*fetcher.APIError](err); ok {
     switch apiErr.StatusCode {
     case http.StatusNotFound:
       writeError(w, http.StatusNotFound, apiErr)

@@ -1,4 +1,4 @@
-package main
+package fetcher
 
 import (
 	"context"
@@ -9,24 +9,24 @@ import (
 )
 
 type APIError struct {
-  StatusCode int
-  Body       string
+	StatusCode int
+	Body       string
 }
 
 type APIErrorBody struct {
-  Errors []APIErrorContent `json:"errors"`
+	Errors []APIErrorContent `json:"errors"`
 }
 
 type APIErrorContent struct {
-  Message string `json:"message"`
+	Message string `json:"message"`
 }
 
 func (e *APIError) Error() string {
-  var body APIErrorBody
-  if err := json.Unmarshal([]byte(e.Body), &body); err == nil && len(body.Errors) > 0 {
-    return body.Errors[0].Message
-  }
-  return fmt.Sprintf("Error %d", e.StatusCode)
+	var body APIErrorBody
+	if err := json.Unmarshal([]byte(e.Body), &body); err == nil && len(body.Errors) > 0 {
+		return body.Errors[0].Message
+	}
+	return fmt.Sprintf("Error %d", e.StatusCode)
 }
 
 type Fetcher struct {
@@ -35,7 +35,7 @@ type Fetcher struct {
 	httpClient *http.Client
 }
 
-func newFetcher(apiKey, authHeader string) Fetcher {
+func New(apiKey, authHeader string) Fetcher {
 	return Fetcher{
 		apiKey:     apiKey,
 		authHeader: authHeader,
@@ -43,7 +43,7 @@ func newFetcher(apiKey, authHeader string) Fetcher {
 	}
 }
 
-func (f *Fetcher) fetch(ctx context.Context, url string) (map[string]any, error) {
+func (f *Fetcher) Fetch(ctx context.Context, url string) (map[string]any, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating a request: %w", err)
@@ -61,8 +61,8 @@ func (f *Fetcher) fetch(ctx context.Context, url string) (map[string]any, error)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-    body, _ := io.ReadAll(resp.Body)
-    return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
+		body, _ := io.ReadAll(resp.Body)
+		return nil, &APIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	body, err := io.ReadAll(resp.Body)
