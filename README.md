@@ -10,7 +10,7 @@ Intended to be used with [CS2 Profile Stats extension](https://github.com/CS2-Pr
 ## Usage
 - Rename `.env.example` to `.env` and enter your api keys
 
-Can be used as is with `./api` or using [Docker](README.md#docker).  
+After setting up `.env` file, can be used as is with `./api` or using [Docker](README.md#docker).  
 Runs on port :8080 by default.
 
 ### Docker
