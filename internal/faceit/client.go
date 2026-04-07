@@ -86,20 +86,20 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	playerBans, err := c.fetchPlayerBans(ctx, *playerId)
 	if err != nil {
-	    return nil, fmt.Errorf("Failed fetching player bans: %w", err)
+		return nil, fmt.Errorf("Failed fetching player bans: %w", err)
 	}
 
 	var banned *bool
 	var banReason *string
 	items, _ := playerBans["items"].([]any)
 	if len(items) > 0 {
-	  b := true
-	  banned = &b
-	  ban, _ := items[0].(map[string]any)
-	  banReason = utils.GetString(ban, "reason")
+		b := true
+		banned = &b
+		ban, _ := items[0].(map[string]any)
+		banReason = utils.GetString(ban, "reason")
 	} else {
-	  b := false
-	  banned = &b
+		b := false
+		banned = &b
 	}
 
 	playerStats, err := c.fetchPlayerStats(ctx, *playerId)
