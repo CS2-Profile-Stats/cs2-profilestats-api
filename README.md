@@ -8,6 +8,8 @@ Intended to be used with [CS2 Profile Stats extension](https://github.com/CS2-Pr
 - Build: `go build -o api ./cmd/api`
 
 ## Usage
+- Rename `.env.example` to `.env` and enter your api keys
+
 Can be used as is with `./api` or with [Docker](README.md#docker).  
 Runs on port :8080 by default.
 
