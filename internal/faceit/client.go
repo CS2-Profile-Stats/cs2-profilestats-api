@@ -12,6 +12,8 @@ import (
 type Profile struct {
 	PlayerID   *string `json:"player_id"`
 	Nickname   *string `json:"nickname"`
+	Banned     *bool   `json:"banned"`
+	BanReason  *string `json:"ban_reason"`
 	Avatar     *string `json:"avatar"`
 	Country    *string `json:"country"`
 	Registered *string `json:"registered"`
@@ -82,6 +84,24 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		membership = &v
 	}
 
+	playerBans, err := c.fetchPlayerBans(ctx, *playerId)
+	if err != nil {
+	    return nil, fmt.Errorf("Failed fetching player bans: %w", err)
+	}
+
+	var banned *bool
+	var banReason *string
+	items, _ := playerBans["items"].([]any)
+	if len(items) > 0 {
+	  b := true
+	  banned = &b
+	  ban, _ := items[0].(map[string]any)
+	  banReason = utils.GetString(ban, "reason")
+	} else {
+	  b := false
+	  banned = &b
+	}
+
 	playerStats, err := c.fetchPlayerStats(ctx, *playerId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed fetching player stats: %w", err)
@@ -147,6 +167,8 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	return &Profile{
 		PlayerID:   playerId,
 		Nickname:   nickname,
+		Banned:     banned,
+		BanReason:  banReason,
 		Avatar:     avatar,
 		Country:    country,
 		Registered: registered,
@@ -178,5 +200,10 @@ func (c *Client) fetchPlayerStats(ctx context.Context, playerID string) (map[str
 
 func (c *Client) fetchPlayerRanking(ctx context.Context, region string, playerID string) (map[string]any, error) {
 	url := fmt.Sprintf("https://open.faceit.com/data/v4/rankings/games/cs2/regions/%s/players/%s", region, playerID)
+	return c.Fetch(ctx, url)
+}
+
+func (c *Client) fetchPlayerBans(ctx context.Context, playerID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/bans", playerID)
 	return c.Fetch(ctx, url)
 }
