@@ -92,6 +92,26 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, profile)
 }
 
+func (s *Server) handleCsstats(w http.ResponseWriter, r *http.Request) {
+	steamID := chi.URLParam(r, "steamID")
+
+	cacheKey := "csstats:" + steamID
+	if cached, ok := s.cache.Get(cacheKey); ok {
+		writeJSON(w, http.StatusOK, cached)
+		return
+	}
+
+	profile, err := s.csstats.GetProfile(r.Context(), steamID)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err)
+		return
+	}
+
+	s.cache.Set(cacheKey, profile, 30*time.Minute)
+
+	writeJSON(w, http.StatusOK, profile)
+}
+
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }
