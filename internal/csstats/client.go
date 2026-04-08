@@ -15,15 +15,29 @@ type Profile struct {
 }
 
 type Stats struct {
-	KDRatio       *float64  `json:"kd_ratio"`
-	HLTVRating    *float64  `json:"hltv_rating"`
-	Matches       *int      `json:"matches"`
-	WinRate       *int      `json:"win_rate"`
-	HSPercentage  *int      `json:"hs_percentage"`
-	ADR           *int      `json:"adr"`
-	Clutch        *int      `json:"clutch"`
-	RecentResults []*string `json:"recent_results"`
-	MostPlayedMap *string   `json:"most_played_map"`
+	PremierRatings   []PremierRating   `json:"premier_ratings"`
+	KDRatio          *float64          `json:"kd_ratio"`
+	HLTVRating       *float64          `json:"hltv_rating"`
+	Matches          *int              `json:"matches"`
+	WinRate          *int              `json:"win_rate"`
+	HSPercentage     *int              `json:"hs_percentage"`
+	ADR              *int              `json:"adr"`
+	Clutch           *int              `json:"clutch"`
+	RecentResults    []*string         `json:"recent_results"`
+	MostPlayedMap    *string           `json:"most_played_map"`
+	CompetitiveRanks []CompetitiveRank `json:"competitive_ranks"`
+	WingmanRank      *int              `json:"wingman_rank"`
+}
+
+type PremierRating struct {
+	Season       *int `json:"season"`
+	LatestRating *int `json:"latest_rating"`
+	BestRating   *int `json:"best_rating"`
+}
+
+type CompetitiveRank struct {
+	Map  *string `json:"map"`
+	Rank *int    `json:"rank"`
 }
 
 type Client struct {
@@ -92,16 +106,16 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		chromedp.Navigate(url),
 
 		chromedp.ActionFunc(func(ctx context.Context) error {
-	    var isPrivate bool
-	    if err := chromedp.Evaluate(`
+			var isPrivate bool
+			if err := chromedp.Evaluate(`
         Array.from(document.querySelectorAll('h1')).some(h => h.innerText.trim() === 'Private Profile')
 	    `, &isPrivate).Do(ctx); err != nil {
-        return err
-	    }
-	    if isPrivate {
-        return privateErr
-	    }
-	    return nil
+				return err
+			}
+			if isPrivate {
+				return privateErr
+			}
+			return nil
 		}),
 
 		// wait for overview to be visible first
@@ -110,6 +124,71 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		// csstats css is horrible
 		chromedp.Evaluate(`
 			(function() {
+				function getWingmanRank() {
+			    var rows = document.querySelectorAll('#player-ranks .ranks');
+			    for (var r of rows) {
+		        var iconImg = r.querySelector('.icon img');
+		        if (!iconImg || iconImg.getAttribute('alt') !== 'Wingman') continue;
+		        var rankImg = r.querySelector('.rank img.rank');
+		        if (!rankImg) return '';
+		        var src = rankImg.getAttribute('src') || '';
+		        var match = src.match(/wingman(\d+)\.svg/);
+		        return match ? match[1] : '';
+			    }
+			    return '';
+				}
+
+				function getCompetitiveRanks() {
+			    var results = [];
+			    var rows = document.querySelectorAll('#player-ranks .ranks');
+			    for (var r of rows) {
+		        var iconDiv = r.querySelector('.icon');
+		        if (!iconDiv) continue;
+		        var iconImg = iconDiv.querySelector('img');
+		        var map;
+		        if (iconImg) {
+	            var alt = iconImg.getAttribute('alt') || '';
+	            if (alt === 'FACEIT' || alt.includes('Premier') || alt === 'Wingman') continue;
+	            if (!alt) continue;
+	            map = alt;
+		        } else {
+	            map = iconDiv.innerText.trim();
+	            if (!map) continue;
+		        }
+		        var rankImg = r.querySelector('.rank img.rank');
+		        if (!rankImg) continue;
+		        var src = rankImg.getAttribute('src') || '';
+		        var match = src.match(/ranks\/(\d+)\.png/);
+		        if (!match) continue;
+		        results.push({ map: map, rank: match[1] });
+			    }
+			    return results;
+				}
+
+				function getPremierRatings() {
+			    var results = [];
+			    var rows = document.querySelectorAll('#player-ranks .ranks');
+			    for (var r of rows) {
+		        var icon = r.querySelector('.icon img[alt*="Premier"]');
+		        if (!icon) continue;
+		        var seasonEl = r.querySelector('.icon[style*="flex-basis"]');
+		        var season = seasonEl ? seasonEl.innerText.trim().replace('S', '') : '';
+		        var latestEl = r.querySelector('.rank .cs2rating span');
+		        var bestEl = r.querySelector('.best .cs2rating span');
+						var latest = parseRating(latestEl);
+						var best = parseRating(bestEl);
+		        results.push({ season: season, latestRating: latest, bestRating: best });
+			    }
+			    return results;
+				}
+
+				function parseRating(el) {
+			    if (!el) return '';
+			    var text = el.innerText.trim();
+			    if (text.startsWith('---')) return '0';
+			    return text.replace(/[^0-9]/g, '');
+				}
+
 				function getStatPanel(heading) {
 					var panels = document.querySelectorAll('.stat-panel');
 					for (var p of panels) {
@@ -118,12 +197,14 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 					}
 					return null;
 				}
+
 				function getUnnamedStatPerc(heading) {
 					var p = getStatPanel(heading);
 					if (!p) return '';
 					var m = p.innerText.match(/(\d+)%/);
 					return m ? m[1] : '';
 				}
+
 				function getUnnamedStatNum(heading) {
 					var p = getStatPanel(heading);
 					if (!p) return '';
@@ -131,13 +212,16 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 					return m ? m[1] : '';
 				}
 
-				var dots = document.querySelectorAll('.match-dot');
-				var recentResults = [];
-				for (var i = 0; i < Math.min(5, dots.length); i++) {
-					var d = dots[i];
-					if (d.classList.contains('match-win')) recentResults.push('W');
-					else if (d.classList.contains('match-lose')) recentResults.push('L');
-					else if (d.classList.contains('match-draw')) recentResults.push('T');
+				function getRecentResults() {
+					var dots = document.querySelectorAll('.match-dot');
+					var recentResults = [];
+					for (var i = 0; i < Math.min(5, dots.length); i++) {
+						var d = dots[i];
+						if (d.classList.contains('match-win')) recentResults.push('W');
+						else if (d.classList.contains('match-lose')) recentResults.push('L');
+						else if (d.classList.contains('match-draw')) recentResults.push('T');
+					}
+					return recentResults;
 				}
 
 				var mostPlayedPanel = getStatPanel('Most Played');
@@ -149,16 +233,19 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 				);
 
 				return {
-					name:          (document.querySelector('#player-name') || {innerText:''}).innerText.trim(),
-					kdRatio:       (document.querySelector('#kpd span') || {innerText:''}).innerText.trim(),
-					hltvRating:    (document.querySelector('#rating span') || {innerText:''}).innerText.trim(),
-					matches:       matchesNode.singleNodeValue ? matchesNode.singleNodeValue.innerText.trim() : '',
-					winRate:       getUnnamedStatPerc('WIN RATE'),
-					hsPercentage:  getUnnamedStatPerc('HS%'),
-					adr:           getUnnamedStatNum('ADR'),
-					clutch:        getUnnamedStatPerc('CLUTCH SUCCESS'),
-					mostPlayedMap: mostPlayedSpan ? mostPlayedSpan.innerText.trim() : '',
-					recentResults: recentResults,
+					name:             (document.querySelector('#player-name') || {innerText:''}).innerText.trim(),
+					premierRatings:   getPremierRatings(),
+					kdRatio:          (document.querySelector('#kpd span') || {innerText:''}).innerText.trim(),
+					hltvRating:       (document.querySelector('#rating span') || {innerText:''}).innerText.trim(),
+					matches:          matchesNode.singleNodeValue ? matchesNode.singleNodeValue.innerText.trim() : '',
+					winRate:          getUnnamedStatPerc('WIN RATE'),
+					hsPercentage:     getUnnamedStatPerc('HS%'),
+					adr:              getUnnamedStatNum('ADR'),
+					clutch:           getUnnamedStatPerc('CLUTCH SUCCESS'),
+					mostPlayedMap:    mostPlayedSpan ? mostPlayedSpan.innerText.trim() : '',
+					recentResults:    getRecentResults(),
+					competitiveRanks: getCompetitiveRanks(),
+					wingmanRank:      getWingmanRank(),
 				};
 			})()
 		`, &raw),
@@ -167,7 +254,7 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		if err == privateErr {
 			return nil, privateErr
 		}
-    return nil, fmt.Errorf("Failed to scrape CSStats profile for %s: %w", steamID, err)
+		return nil, fmt.Errorf("Failed to scrape CSStats profile for %s: %w", steamID, err)
 	}
 
 	name := parseString(raw["name"])
@@ -191,18 +278,52 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		}
 	}
 
+	var premierRatings []PremierRating
+	if arr, ok := raw["premierRatings"].([]any); ok {
+		for _, v := range arr {
+			entry, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			premierRatings = append(premierRatings, PremierRating{
+				Season:       parseInt(entry["season"]),
+				LatestRating: parseInt(entry["latestRating"]),
+				BestRating:   parseInt(entry["bestRating"]),
+			})
+		}
+	}
+
+	var competitiveRanks []CompetitiveRank
+	if arr, ok := raw["competitiveRanks"].([]any); ok {
+		for _, v := range arr {
+			entry, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			competitiveRanks = append(competitiveRanks, CompetitiveRank{
+				Map:  parseString(entry["map"]),
+				Rank: parseInt(entry["rank"]),
+			})
+		}
+	}
+
+	wingmanRank := parseInt(raw["wingmanRank"])
+
 	return &Profile{
 		Name: name,
 		Stats: &Stats{
-			KDRatio:       kdRatio,
-			HLTVRating:    hltvRating,
-			Matches:       matches,
-			WinRate:       winRate,
-			HSPercentage:  hsPercentage,
-			ADR:           adr,
-			Clutch:        clutch,
-			RecentResults: recentResults,
-			MostPlayedMap: mostPlayedMap,
+			PremierRatings:   premierRatings,
+			KDRatio:          kdRatio,
+			HLTVRating:       hltvRating,
+			Matches:          matches,
+			WinRate:          winRate,
+			HSPercentage:     hsPercentage,
+			ADR:              adr,
+			Clutch:           clutch,
+			RecentResults:    recentResults,
+			MostPlayedMap:    mostPlayedMap,
+			CompetitiveRanks: competitiveRanks,
+			WingmanRank:      wingmanRank,
 		},
 	}, nil
 }
