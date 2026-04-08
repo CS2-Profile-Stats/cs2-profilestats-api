@@ -11,6 +11,10 @@ import (
 	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
 )
 
+func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
+  writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
 func (s *Server) handleSteam(w http.ResponseWriter, r *http.Request) {
 	steamID := chi.URLParam(r, "steamID")
 

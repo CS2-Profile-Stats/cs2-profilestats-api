@@ -18,6 +18,7 @@ func (s *Server) routes() http.Handler {
 		MaxAge:           300,
 	}))
 
+	r.Get("/api/status", s.handleStatus)
 	r.Get("/api/stats/faceit/{steamID}", s.handleFaceit)
 	r.Get("/api/stats/leetify/{steamID}", s.handleLeetify)
 	r.Get("/api/stats/steam/{steamID}", s.handleSteam)
