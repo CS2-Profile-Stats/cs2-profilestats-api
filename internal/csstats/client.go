@@ -62,6 +62,8 @@ func (c *Client) Close() {
 }
 
 func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, error) {
+	privateErr := fmt.Errorf("private profile")
+
 	select {
 	case c.tabs <- struct{}{}:
 	case <-ctx.Done():
@@ -88,6 +90,19 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		}),
 
 		chromedp.Navigate(url),
+
+		chromedp.ActionFunc(func(ctx context.Context) error {
+	    var isPrivate bool
+	    if err := chromedp.Evaluate(`
+        Array.from(document.querySelectorAll('h1')).some(h => h.innerText.trim() === 'Private Profile')
+	    `, &isPrivate).Do(ctx); err != nil {
+        return err
+	    }
+	    if isPrivate {
+        return privateErr
+	    }
+	    return nil
+		}),
 
 		// wait for overview to be visible first
 		chromedp.WaitVisible(`#player-overview`, chromedp.ByQuery),
@@ -149,7 +164,10 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		`, &raw),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to scrape CSStats profile for %s: %w", steamID, err)
+		if err == privateErr {
+			return nil, privateErr
+		}
+    return nil, fmt.Errorf("Failed to scrape CSStats profile for %s: %w", steamID, err)
 	}
 
 	name := parseString(raw["name"])
