@@ -77,23 +77,28 @@ func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
-	steamID := chi.URLParam(r, "steamID")
+  steamID := chi.URLParam(r, "steamID")
 
-	cacheKey := "faceit:" + steamID
-	if cached, ok := s.cache.Get(cacheKey); ok {
-		writeJSON(w, http.StatusOK, cached)
-		return
-	}
+  game := r.URL.Query().Get("game")
+  if game == "" {
+    game = "cs2"
+  }
 
-	profile, err := s.faceit.GetProfile(r.Context(), steamID)
-	if err != nil {
-		writeApiError(w, err)
-		return
-	}
+  cacheKey := "faceit:" + game + ":" + steamID
+  if cached, ok := s.cache.Get(cacheKey); ok {
+    writeJSON(w, http.StatusOK, cached)
+    return
+  }
 
-	s.cache.Set(cacheKey, profile, 5*time.Minute)
+  profile, err := s.faceit.GetProfile(r.Context(), game, steamID)
+  if err != nil {
+    writeApiError(w, err)
+    return
+  }
 
-	writeJSON(w, http.StatusOK, profile)
+  s.cache.Set(cacheKey, profile, 5*time.Minute)
+
+  writeJSON(w, http.StatusOK, profile)
 }
 
 func (s *Server) handleCsstats(w http.ResponseWriter, r *http.Request) {

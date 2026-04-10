@@ -42,8 +42,8 @@ func NewClient(apiKey string) *Client {
 	return &Client{Fetcher: fetcher.New("Bearer "+apiKey, "Authorization")}
 }
 
-func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, error) {
-	playerData, err := c.fetchPlayerData(ctx, steamId)
+func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*Profile, error) {
+	playerData, err := c.fetchPlayerData(ctx, game, steamId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed fetching player data: %w", err)
 	}
@@ -69,7 +69,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	var level, elo *int
 	games, ok := playerData["games"].(map[string]any)
 	if ok {
-		cs2, ok := games["cs2"].(map[string]any)
+		cs2, ok := games[game].(map[string]any)
 		if ok {
 			region = utils.GetString(cs2, "region")
 			level = utils.GetInt(cs2, "skill_level")
@@ -102,7 +102,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		banned = &b
 	}
 
-	playerStats, err := c.fetchPlayerStats(ctx, *playerId)
+	playerStats, err := c.fetchPlayerStats(ctx, game, *playerId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed fetching player stats: %w", err)
 	}
@@ -157,7 +157,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	var ranking *int
 
 	if region != nil {
-		playerRanking, err := c.fetchPlayerRanking(ctx, *region, *playerId)
+		playerRanking, err := c.fetchPlayerRanking(ctx, game, *region, *playerId)
 		if err != nil {
 			return nil, fmt.Errorf("Failed fetching player ranking: %w", err)
 		}
@@ -188,18 +188,18 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	}, nil
 }
 
-func (c *Client) fetchPlayerData(ctx context.Context, steamID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://open.faceit.com/data/v4/players?game=cs2&game_player_id=%s", steamID)
+func (c *Client) fetchPlayerData(ctx context.Context, game string, steamID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/players?game=%s&game_player_id=%s", game, steamID)
 	return c.Fetch(ctx, url)
 }
 
-func (c *Client) fetchPlayerStats(ctx context.Context, playerID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/stats/cs2", playerID)
+func (c *Client) fetchPlayerStats(ctx context.Context, game string, playerID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/stats/%s", playerID, game)
 	return c.Fetch(ctx, url)
 }
 
-func (c *Client) fetchPlayerRanking(ctx context.Context, region string, playerID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://open.faceit.com/data/v4/rankings/games/cs2/regions/%s/players/%s", region, playerID)
+func (c *Client) fetchPlayerRanking(ctx context.Context, game string, region string, playerID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/rankings/games/%s/regions/%s/players/%s", game, region, playerID)
 	return c.Fetch(ctx, url)
 }
 
