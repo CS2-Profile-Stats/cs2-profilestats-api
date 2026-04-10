@@ -82,7 +82,7 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 	if ok && len(memberships) > 0 {
     v, _ := memberships[0].(string)
     if v == "super_match_token" {
-      v = "Free"
+      v = "free"
     }
     membership = &v
 	}
