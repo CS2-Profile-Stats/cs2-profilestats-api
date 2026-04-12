@@ -80,11 +80,11 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 	var membership *string
 	memberships, ok := playerData["memberships"].([]any)
 	if ok && len(memberships) > 0 {
-    v, _ := memberships[0].(string)
-    if v == "super_match_token" {
-      v = "free"
-    }
-    membership = &v
+		v, _ := memberships[0].(string)
+		if v == "super_match_token" {
+			v = "free"
+		}
+		membership = &v
 	}
 
 	playerBans, err := c.fetchPlayerBans(ctx, *playerId)

@@ -12,7 +12,7 @@ import (
 )
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-  writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 func (s *Server) handleSteam(w http.ResponseWriter, r *http.Request) {
@@ -77,28 +77,28 @@ func (s *Server) handleLeetify(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
-  steamID := chi.URLParam(r, "steamID")
+	steamID := chi.URLParam(r, "steamID")
 
-  game := r.URL.Query().Get("game")
-  if game == "" {
-    game = "cs2"
-  }
+	game := r.URL.Query().Get("game")
+	if game == "" {
+		game = "cs2"
+	}
 
-  cacheKey := "faceit:" + game + ":" + steamID
-  if cached, ok := s.cache.Get(cacheKey); ok {
-    writeJSON(w, http.StatusOK, cached)
-    return
-  }
+	cacheKey := "faceit:" + game + ":" + steamID
+	if cached, ok := s.cache.Get(cacheKey); ok {
+		writeJSON(w, http.StatusOK, cached)
+		return
+	}
 
-  profile, err := s.faceit.GetProfile(r.Context(), game, steamID)
-  if err != nil {
-    writeApiError(w, err)
-    return
-  }
+	profile, err := s.faceit.GetProfile(r.Context(), game, steamID)
+	if err != nil {
+		writeApiError(w, err)
+		return
+	}
 
-  s.cache.Set(cacheKey, profile, 5*time.Minute)
+	s.cache.Set(cacheKey, profile, 5*time.Minute)
 
-  writeJSON(w, http.StatusOK, profile)
+	writeJSON(w, http.StatusOK, profile)
 }
 
 func (s *Server) handleCsstats(w http.ResponseWriter, r *http.Request) {
