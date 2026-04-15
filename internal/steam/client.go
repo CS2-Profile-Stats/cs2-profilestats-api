@@ -14,6 +14,7 @@ type Profile struct {
 	Registered        *string `json:"registered"`
 	CS2Playtime       *int    `json:"cs2_playtime"`
 	CS2Playtime2Weeks *int    `json:"cs2_playtime_2weeks"`
+	CommunityBanned   *bool   `json:"community_banned"`
 }
 
 type Client struct {
@@ -72,11 +73,32 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 	playtime := minToH(game, "playtime_forever")
 	playtime2Weeks := minToH(game, "playtime_2weeks")
 
+	bansData, err := c.fetchUserBans(ctx, steamID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed fetching user's bans: %w", err)
+	}
+
+	bansPlayers, ok := bansData["players"].([]any)
+	if !ok || len(bansPlayers) == 0 {
+		return nil, fmt.Errorf("Failed to find bans for user: %s", steamID)
+	}
+
+	bansPlayer, ok := bansPlayers[0].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("Player bans data is missing")
+	}
+
+	var communityBanned *bool
+	if raw, ok := bansPlayer["CommunityBanned"].(bool); ok {
+		communityBanned = &raw
+	}
+
 	return &Profile{
-		Name:               name,
-		Registered:         registered,
-		CS2Playtime:        playtime,
-		CS2Playtime2Weeks:  playtime2Weeks,
+		Name:              name,
+		Registered:        registered,
+		CS2Playtime:       playtime,
+		CS2Playtime2Weeks: playtime2Weeks,
+		CommunityBanned:   communityBanned,
 	}, nil
 }
 
@@ -87,6 +109,11 @@ func (c *Client) fetchSteamUser(ctx context.Context, steamID string) (map[string
 
 func (c *Client) fetchSteamGames(ctx context.Context, steamID string) (map[string]any, error) {
 	url := fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=%s&steamid=%s&appids_filter[0]=730&include_played_free_games=true&language=en", c.apiKey, steamID)
+	return c.Fetch(ctx, url)
+}
+
+func (c *Client) fetchUserBans(ctx context.Context, steamID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://api.steampowered.com/ISteamUser/GetPlayerBans/v1/?key=%s&steamids=%s", c.apiKey, steamID)
 	return c.Fetch(ctx, url)
 }
 
