@@ -10,9 +10,10 @@ import (
 )
 
 type Profile struct {
-	Name        *string `json:"name"`
-	Registered  *string `json:"registered"`
-	CS2Playtime *int    `json:"cs2_playtime"`
+	Name              *string `json:"name"`
+	Registered        *string `json:"registered"`
+	CS2Playtime       *int    `json:"cs2_playtime"`
+	CS2Playtime2Weeks *int    `json:"cs2_playtime_2weeks"`
 }
 
 type Client struct {
@@ -61,32 +62,21 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		return nil, fmt.Errorf("Failed fetching games data: %w", err)
 	}
 
-	var playtime *int
-	gamesResponse, ok := gamesData["response"].(map[string]any)
-	if ok {
-		games, ok := gamesResponse["games"].([]any)
-		if ok {
-			for _, g := range games {
-				game, ok := g.(map[string]any)
-				if !ok {
-					continue
-				}
-				appid, _ := game["appid"].(float64)
-				if int(appid) == 730 {
-					if raw, ok := game["playtime_forever"].(float64); ok {
-						v := int(raw) / 60
-						playtime = &v
-					}
-					break
-				}
-			}
-		}
+	var game map[string]any
+	if response, ok := gamesData["response"].(map[string]any); ok {
+    if games, ok := response["games"].([]any); ok && len(games) > 0 {
+      game, _ = games[0].(map[string]any)
+    }
 	}
 
+	playtime := minToH(game, "playtime_forever")
+	playtime2Weeks := minToH(game, "playtime_2weeks")
+
 	return &Profile{
-		Name:        name,
-		Registered:  registered,
-		CS2Playtime: playtime,
+		Name:               name,
+		Registered:         registered,
+		CS2Playtime:        playtime,
+		CS2Playtime2Weeks:  playtime2Weeks,
 	}, nil
 }
 
@@ -96,7 +86,7 @@ func (c *Client) fetchSteamUser(ctx context.Context, steamID string) (map[string
 }
 
 func (c *Client) fetchSteamGames(ctx context.Context, steamID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=%s&steamid=%s&appids_filter=730&language=en", c.apiKey, steamID)
+	url := fmt.Sprintf("https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=%s&steamid=%s&appids_filter[0]=730&include_played_free_games=true&language=en", c.apiKey, steamID)
 	return c.Fetch(ctx, url)
 }
 
@@ -119,4 +109,16 @@ func (c *Client) ResolveVanity(ctx context.Context, vanity string) (string, erro
 func (c *Client) fetchSteamID64(ctx context.Context, vanity string) (map[string]any, error) {
 	url := fmt.Sprintf("https://api.steampowered.com/ISteamUser/ResolveVanityURL/v1/?key=%s&vanityurl=%s&url_type=1", c.apiKey, vanity)
 	return c.Fetch(ctx, url)
+}
+
+func minToH(game map[string]any, key string) *int {
+	if game == nil {
+		return nil
+	}
+	raw, ok := game[key].(float64)
+	if !ok {
+		return nil
+	}
+	v := int(raw) / 60
+	return &v
 }
