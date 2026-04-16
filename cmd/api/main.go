@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/dom1torii/cs2-profilestats-api/internal/cache"
-	"github.com/dom1torii/cs2-profilestats-api/internal/csstats"
 	"github.com/dom1torii/cs2-profilestats-api/internal/faceit"
 	"github.com/dom1torii/cs2-profilestats-api/internal/leetify"
 	"github.com/dom1torii/cs2-profilestats-api/internal/server"
@@ -20,14 +19,10 @@ func main() {
 		}
 	}
 
-	csStatsClient := csstats.NewClient()
-	defer csStatsClient.Close()
-
 	s := server.New(
 		faceit.NewClient(os.Getenv("FACEIT_API_KEY")),
 		leetify.NewClient(os.Getenv("LEETIFY_API_KEY")),
 		steam.NewClient(os.Getenv("STEAM_API_KEY")),
-		csStatsClient,
 		cache.New(),
 	)
 
