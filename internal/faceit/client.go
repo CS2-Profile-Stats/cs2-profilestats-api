@@ -102,14 +102,14 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 	var banEnds *string
 	items, _ := playerBans["items"].([]any)
 	if len(items) > 0 {
-    b := true
-    banned = &b
-    ban, _ := items[0].(map[string]any)
-    banReason = utils.GetString(ban, "reason")
-    banEnds = utils.GetString(ban, "ends_at")
+		b := true
+		banned = &b
+		ban, _ := items[0].(map[string]any)
+		banReason = utils.GetString(ban, "reason")
+		banEnds = utils.GetString(ban, "ends_at")
 	} else {
-    b := false
-    banned = &b
+		b := false
+		banned = &b
 	}
 
 	playerStats, err := c.fetchPlayerStats(ctx, game, *playerId)
@@ -121,15 +121,15 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 	matches := utils.GetIntFromString(lifetime, "Matches")
 
 	if game == "cs2" {
-    csgoStats, err := c.fetchPlayerStats(ctx, "csgo", *playerId)
-    if err == nil {
-      csgoLifetime, _ := csgoStats["lifetime"].(map[string]any)
-      csgoMatches := utils.GetIntFromString(csgoLifetime, "Matches")
-      if matches != nil && csgoMatches != nil {
-        cs2Matches := *matches - *csgoMatches
-        matches = &cs2Matches
-      }
-    }
+		csgoStats, err := c.fetchPlayerStats(ctx, "csgo", *playerId)
+		if err == nil {
+			csgoLifetime, _ := csgoStats["lifetime"].(map[string]any)
+			csgoMatches := utils.GetIntFromString(csgoLifetime, "Matches")
+			if matches != nil && csgoMatches != nil {
+				cs2Matches := *matches - *csgoMatches
+				matches = &cs2Matches
+			}
+		}
 	}
 
 	var recentResults []*string
@@ -170,68 +170,68 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 	matchCount := 0
 
 	for _, i := range matchesItems {
-    item, ok := i.(map[string]any)
-    if !ok {
-      continue
-    }
-    stats, ok := item["stats"].(map[string]any)
-    if !ok {
-      continue
-    }
+		item, ok := i.(map[string]any)
+		if !ok {
+			continue
+		}
+		stats, ok := item["stats"].(map[string]any)
+		if !ok {
+			continue
+		}
 
-    kd := utils.GetFloatFromString(stats, "K/D Ratio")
-    hs := utils.GetIntFromString(stats, "Headshots %")
-    result := utils.GetIntFromString(stats, "Result")
-    kills := utils.GetIntFromString(stats, "Kills")
-    deaths := utils.GetIntFromString(stats, "Deaths")
-    assists := utils.GetIntFromString(stats, "Assists")
+		kd := utils.GetFloatFromString(stats, "K/D Ratio")
+		hs := utils.GetIntFromString(stats, "Headshots %")
+		result := utils.GetIntFromString(stats, "Result")
+		kills := utils.GetIntFromString(stats, "Kills")
+		deaths := utils.GetIntFromString(stats, "Deaths")
+		assists := utils.GetIntFromString(stats, "Assists")
 
-    if kd == nil || hs == nil || result == nil || kills == nil || deaths == nil || assists == nil {
-      continue
-    }
+		if kd == nil || hs == nil || result == nil || kills == nil || deaths == nil || assists == nil {
+			continue
+		}
 
-    totalKdRatio += *kd
-    totalHsPercentage += *hs
-    if *result == 1 {
-      totalWins++
-    } else {
-      totalLosses++
-    }
-    totalKills += *kills
-    totalDeaths += *deaths
-    totalAssists += *assists
+		totalKdRatio += *kd
+		totalHsPercentage += *hs
+		if *result == 1 {
+			totalWins++
+		} else {
+			totalLosses++
+		}
+		totalKills += *kills
+		totalDeaths += *deaths
+		totalAssists += *assists
 
-    matchCount++
+		matchCount++
 	}
 
 	if matchCount > 0 {
-	  kd := math.Round(totalKdRatio / float64(matchCount) * 100) / 100
-	  kdRatio = &kd
+		kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
+		kdRatio = &kd
 
-	  hs := totalHsPercentage / matchCount
-	  hsPercentage = &hs
+		hs := totalHsPercentage / matchCount
+		hsPercentage = &hs
 
-	  totalMatches := totalWins + totalLosses
-	  if totalMatches > 0 {
-	    wr := (totalWins * 100) / totalMatches
-	    winRate = &wr
-	  }
+		totalMatches := totalWins + totalLosses
+		if totalMatches > 0 {
+			wr := (totalWins * 100) / totalMatches
+			winRate = &wr
+		}
 
-	  kills := totalKills / matchCount
-	  avgKills = &kills
-	  deaths := totalDeaths / matchCount
-	  avgDeaths = &deaths
-	  assists := totalAssists / matchCount
-	  avgAssists = &assists
+		kills := totalKills / matchCount
+		avgKills = &kills
+		deaths := totalDeaths / matchCount
+		avgDeaths = &deaths
+		assists := totalAssists / matchCount
+		avgAssists = &assists
 	}
 
 	var lastMatch *string
 	lastMatchItem, ok := matchesItems[0].(map[string]any)
 	if ok {
-    stats, ok := lastMatchItem["stats"].(map[string]any)
-    if ok {
-      lastMatch = utils.GetString(stats, "Updated At")
-    }
+		stats, ok := lastMatchItem["stats"].(map[string]any)
+		if ok {
+			lastMatch = utils.GetString(stats, "Updated At")
+		}
 	}
 
 	var ranking *int

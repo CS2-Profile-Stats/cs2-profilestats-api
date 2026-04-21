@@ -65,9 +65,9 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 
 	var game map[string]any
 	if response, ok := gamesData["response"].(map[string]any); ok {
-    if games, ok := response["games"].([]any); ok && len(games) > 0 {
-      game, _ = games[0].(map[string]any)
-    }
+		if games, ok := response["games"].([]any); ok && len(games) > 0 {
+			game, _ = games[0].(map[string]any)
+		}
 	}
 
 	playtime := minToH(game, "playtime_forever")
