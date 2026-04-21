@@ -18,6 +18,9 @@ func (s *Server) routes() http.Handler {
 		MaxAge:           300,
 	}))
 
+ 	fileServer := http.FileServer(http.Dir("./assets"))
+  r.Handle("/assets/*", http.StripPrefix("/assets", fileServer))
+
 	r.Get("/api/status", s.handleStatus)
 	r.Get("/api/stats/faceit/{steamID}", s.handleFaceit)
 	r.Get("/api/stats/leetify/{steamID}", s.handleLeetify)

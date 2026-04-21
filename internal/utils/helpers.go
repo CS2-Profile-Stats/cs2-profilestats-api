@@ -1,6 +1,9 @@
 package utils
 
-import "strconv"
+import (
+	"math"
+	"strconv"
+)
 
 func GetString(m map[string]any, key string) *string {
 	v, ok := m[key].(string)
@@ -19,12 +22,12 @@ func GetFloat(m map[string]any, key string) *float64 {
 }
 
 func GetInt(m map[string]any, key string) *int {
-	v, ok := m[key].(float64)
-	if !ok {
-		return nil
-	}
-	final := int(v)
-	return &final
+  v, ok := m[key].(float64)
+  if !ok {
+    return nil
+  }
+  final := int(math.Round(v))
+  return &final
 }
 
 func GetFloatFromString(m map[string]any, key string) *float64 {

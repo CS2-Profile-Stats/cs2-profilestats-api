@@ -18,6 +18,7 @@ type Stats struct {
 	LeetifyRating    *float64          `json:"leetify_rating"`
 	PremierRating    *int              `json:"premier_rating"`
 	CompetitiveRanks []CompetitiveRank `json:"competitive_ranks"`
+	WingmanRank      *int              `json:"wingman_rank"`
 	Matches          *int              `json:"matches"`
 	FirstMatch       *string           `json:"first_match"`
 	WinRate          *int              `json:"win_rate"`
@@ -53,6 +54,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	var leetifyRating *float64
 	var premierRating *int
+	var wingmanRank *int
 	var competitiveRanks []CompetitiveRank
 	ranks, ok := playerData["ranks"].(map[string]any)
 	if ok {
@@ -61,6 +63,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 			leetifyRating = &v
 		}
 		premierRating = utils.GetInt(ranks, "premier")
+		wingmanRank = utils.GetInt(ranks, "wingman")
 
 		rawCompetitive, ok := ranks["competitive"].([]any)
 		if ok && len(rawCompetitive) > 0 {
@@ -122,6 +125,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 			LeetifyRating:    leetifyRating,
 			PremierRating:    premierRating,
 			CompetitiveRanks: competitiveRanks,
+			WingmanRank:      wingmanRank,
 			Matches:          matches,
 			FirstMatch:       firstMatch,
 			WinRate:          winRate,
