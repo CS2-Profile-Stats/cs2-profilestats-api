@@ -43,13 +43,12 @@ func New(apiKey, authHeader string) Fetcher {
 	}
 }
 
-func (f *Fetcher) Fetch(ctx context.Context, url string) (map[string]any, error) {
+func (f *Fetcher) get(ctx context.Context, url string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed creating a request: %w", err)
 	}
 
-	// steam for example doesn't have a header and its passed as a url parameter
 	if f.authHeader != "" {
 		req.Header.Set(f.authHeader, f.apiKey)
 	}
@@ -70,7 +69,30 @@ func (f *Fetcher) Fetch(ctx context.Context, url string) (map[string]any, error)
 		return nil, fmt.Errorf("Failed reading body: %w", err)
 	}
 
+	return body, nil
+}
+
+func (f *Fetcher) Fetch(ctx context.Context, url string) (map[string]any, error) {
+	body, err := f.get(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
 	var result map[string]any
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("Failed parsing json: %w", err)
+	}
+
+	return result, nil
+}
+
+func (f *Fetcher) FetchArray(ctx context.Context, url string) ([]any, error) {
+	body, err := f.get(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []any
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil, fmt.Errorf("Failed parsing json: %w", err)
 	}
