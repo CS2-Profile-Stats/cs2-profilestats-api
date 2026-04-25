@@ -122,37 +122,37 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	rawMatches, err := c.fetchPlayerMatches(ctx, steamId)
 	if err != nil {
-    return nil, fmt.Errorf("Failed fetching matches: %w", err)
+		return nil, fmt.Errorf("Failed fetching matches: %w", err)
 	}
 
 	var kdRatio *float64
 	totalKdRatio := 0.0
 	matchCount := 0
 	for _, m := range rawMatches {
-    match, ok := m.(map[string]any)
-    if !ok {
-      continue
-    }
-    stats, ok := match["stats"].([]any)
-    if !ok {
-      continue
-    }
-    for _, s := range stats {
-      stat, ok := s.(map[string]any)
-      if !ok {
-        continue
-      }
-      kd := utils.GetFloat(stat, "kd_ratio")
-      if kd == nil {
-        continue
-      }
-      totalKdRatio += *kd
-      matchCount++
-    }
+		match, ok := m.(map[string]any)
+		if !ok {
+			continue
+		}
+		stats, ok := match["stats"].([]any)
+		if !ok {
+			continue
+		}
+		for _, s := range stats {
+			stat, ok := s.(map[string]any)
+			if !ok {
+				continue
+			}
+			kd := utils.GetFloat(stat, "kd_ratio")
+			if kd == nil {
+				continue
+			}
+			totalKdRatio += *kd
+			matchCount++
+		}
 	}
 	if matchCount > 0 {
-    kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
-    kdRatio = &kd
+		kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
+		kdRatio = &kd
 	}
 
 	return &Profile{

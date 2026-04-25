@@ -90,9 +90,9 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 		matchLimit = "90"
 	} else {
 		if matchLimitNum, err := strconv.Atoi(matchLimit); err != nil {
-    	matchLimit = "90"
+			matchLimit = "90"
 		} else if matchLimitNum > 90 || matchLimitNum < 1 {
-		  matchLimit = "90"
+			matchLimit = "90"
 		}
 	}
 
