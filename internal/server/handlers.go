@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -87,6 +88,12 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 	matchLimit := r.URL.Query().Get("limit")
 	if matchLimit == "" {
 		matchLimit = "90"
+	} else {
+		if matchLimitNum, err := strconv.Atoi(matchLimit); err != nil {
+    	matchLimit = "90"
+		} else if matchLimitNum > 90 || matchLimitNum < 1 {
+		  matchLimit = "90"
+		}
 	}
 
 	cacheKey := "faceit:" + game + ":" + matchLimit + ":" + steamID
