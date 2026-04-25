@@ -84,13 +84,18 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 		game = "cs2"
 	}
 
-	cacheKey := "faceit:" + game + ":" + steamID
+	matchLimit := r.URL.Query().Get("limit")
+	if matchLimit == "" {
+		matchLimit = "90"
+	}
+
+	cacheKey := "faceit:" + game + ":" + matchLimit + ":" + steamID
 	if cached, ok := s.cache.Get(cacheKey); ok {
 		writeJSON(w, http.StatusOK, cached)
 		return
 	}
 
-	profile, err := s.faceit.GetProfile(r.Context(), game, steamID)
+	profile, err := s.faceit.GetProfile(r.Context(), game, matchLimit, steamID)
 	if err != nil {
 		writeApiError(w, err)
 		return

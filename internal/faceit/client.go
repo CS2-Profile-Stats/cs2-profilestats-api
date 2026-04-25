@@ -47,7 +47,7 @@ func NewClient(apiKey string) *Client {
 	return &Client{Fetcher: fetcher.New("Bearer "+apiKey, "Authorization")}
 }
 
-func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*Profile, error) {
+func (c *Client) GetProfile(ctx context.Context, game string, matchLimit string, steamId string) (*Profile, error) {
 	playerData, err := c.fetchPlayerData(ctx, game, steamId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed fetching player data: %w", err)
@@ -148,7 +148,7 @@ func (c *Client) GetProfile(ctx context.Context, game string, steamId string) (*
 		}
 	}
 
-	matchesData, err := c.fetchPlayerMatches(ctx, game, *playerId)
+	matchesData, err := c.fetchPlayerMatches(ctx, game, matchLimit, *playerId)
 	if err != nil {
 		return nil, fmt.Errorf("Failed fetching player matches: %w", err)
 	}
@@ -282,8 +282,8 @@ func (c *Client) fetchPlayerStats(ctx context.Context, game string, playerID str
 	return c.Fetch(ctx, url)
 }
 
-func (c *Client) fetchPlayerMatches(ctx context.Context, game string, playerID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/games/%s/stats?limit=90", playerID, game)
+func (c *Client) fetchPlayerMatches(ctx context.Context, game string, matchLimit string, playerID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://open.faceit.com/data/v4/players/%s/games/%s/stats?limit=%s", playerID, game, matchLimit)
 	return c.Fetch(ctx, url)
 }
 
