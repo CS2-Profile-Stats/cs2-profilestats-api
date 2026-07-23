@@ -89,7 +89,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	var winRate *int
 	if raw, ok := playerData["winrate"].(float64); ok {
-		v := int(raw * 100)
+		v := int(math.Round(raw * 100))
 		winRate = &v
 	}
 
