@@ -2,8 +2,10 @@ package leetify
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"math"
+	"net/http"
 
 	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
 	"github.com/dom1torii/cs2-profilestats-api/internal/utils"
@@ -120,36 +122,66 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		reactionTime = utils.GetInt(statsData, "reaction_time_ms")
 	}
 
-	rawMatches, err := c.fetchPlayerMatches(ctx, steamId)
-	if err != nil {
-		return nil, fmt.Errorf("Failed fetching matches: %w", err)
-	}
-
 	var kdRatio *float64
 	totalKdRatio := 0.0
 	matchCount := 0
-	for _, m := range rawMatches {
-		match, ok := m.(map[string]any)
-		if !ok {
-			continue
+	rawMatches, err := c.fetchPlayerMatches(ctx, steamId)
+	if err != nil {
+		// if fetching matches fails (no idea why leetify doesn't return them for some profiles),
+		// we use leetify prod api (please dont sue me)
+		var apiErr *fetcher.APIError
+		if !errors.As(err, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return nil, fmt.Errorf("Failed fetching matches: %w", err)
 		}
-		stats, ok := match["stats"].([]any)
-		if !ok {
-			continue
+
+		fallbackMatches, fbErr := c.fetchPlayerMatchesFallback(ctx, steamId)
+		if fbErr != nil {
+			return nil, fmt.Errorf("Failed fetching fallback for matches: %w", fbErr)
 		}
-		for _, s := range stats {
-			stat, ok := s.(map[string]any)
+
+		games, ok := fallbackMatches["games"].([]any)
+		if ok {
+			// prod api returns ALL the matches, we limit to 100 because thats the amount public api returns
+			limit := min(len(games), 100)
+			for _, g := range games[:limit] {
+				game, ok := g.(map[string]any)
+				if !ok {
+					continue
+				}
+				kills := utils.GetFloat(game, "kills")
+				deaths := utils.GetFloat(game, "deaths")
+				if kills == nil || deaths == nil || *deaths == 0 {
+					continue
+				}
+				totalKdRatio += *kills / *deaths
+				matchCount++
+			}
+		}
+	} else {
+		for _, m := range rawMatches {
+			match, ok := m.(map[string]any)
 			if !ok {
 				continue
 			}
-			kd := utils.GetFloat(stat, "kd_ratio")
-			if kd == nil {
+			stats, ok := match["stats"].([]any)
+			if !ok {
 				continue
 			}
-			totalKdRatio += *kd
-			matchCount++
+			for _, s := range stats {
+				stat, ok := s.(map[string]any)
+				if !ok {
+					continue
+				}
+				kd := utils.GetFloat(stat, "kd_ratio")
+				if kd == nil {
+					continue
+				}
+				totalKdRatio += *kd
+				matchCount++
+			}
 		}
 	}
+
 	if matchCount > 0 {
 		kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
 		kdRatio = &kd
@@ -179,6 +211,11 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 func (c *Client) fetchPlayerData(ctx context.Context, steamID string) (map[string]any, error) {
 	url := fmt.Sprintf("https://api-public.cs-prod.leetify.com/v3/profile?steam64_id=%s", steamID)
+	return c.Fetch(ctx, url)
+}
+
+func (c *Client) fetchPlayerMatchesFallback(ctx context.Context, steamID string) (map[string]any, error) {
+	url := fmt.Sprintf("https://api.cs-prod.leetify.com/api/profile/id/%s", steamID)
 	return c.Fetch(ctx, url)
 }
 
