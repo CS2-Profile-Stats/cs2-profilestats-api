@@ -53,7 +53,6 @@ func NewClient(apiKey string) *Client {
 
 func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, error) {
 	playerData, pErr := c.fetchPlayerData(ctx, steamId)
-
 	rawMatches, mErr := c.fetchPlayerMatches(ctx, steamId)
 
 	var name *string
@@ -68,19 +67,16 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	var firstMatch *string
 
 	var winRate *int
-	totalWins := 0
 
 	var aimRating, positioning, utility *int
 	var clutching, opening *float64
 
 	var preAim *float64
-	totalPreAim := 0.0
 	var reactionTime *int
-	totalReactionTime := 0
 
 	var kdRatio *float64
-	totalKdRatio := 0.0
-	matchCount := 0
+
+	var fallbackData map[string]any
 
 	if pErr != nil || mErr != nil {
 		// if fetching playerData or matches fails (no idea why it happens for some profiles),
@@ -94,11 +90,14 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 			return nil, fmt.Errorf("Failed fetching leetify data: %w", combinedErr)
 		}
 
-		fallbackData, fbErr := c.fetchFallbackData(ctx, steamId)
+		var fbErr error
+		fallbackData, fbErr = c.fetchFallbackData(ctx, steamId)
 		if fbErr != nil {
-			return nil, fmt.Errorf("Failed fetching fallback for matches: %w", fbErr)
+			return nil, fmt.Errorf("Failed fetching fallback for leetify data: %w", fbErr)
 		}
+	}
 
+	if pErr != nil {
 		recentRatings, ok := fallbackData["recentGameRatings"].(map[string]any)
 		if ok {
 			if raw, ok := recentRatings["leetify"].(float64); ok {
@@ -135,68 +134,6 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		meta, ok := fallbackData["meta"].(map[string]any)
 		if ok {
 			name = utils.GetString(meta, "name")
-		}
-
-		games, ok := fallbackData["games"].([]any)
-		if ok {
-			gamesLen := len(games)
-			matches = &gamesLen
-
-			firstMatchData, ok := games[len(games)-1].(map[string]any)
-			if ok {
-				firstMatch = utils.GetString(firstMatchData, "gameFinishedAt")
-			}
-
-			// prod api returns ALL the matches, we limit to 100 because thats the amount public api returns
-			limit := min(len(games), 100)
-			for _, g := range games[:limit] {
-				game, ok := g.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				kills := utils.GetFloat(game, "kills")
-				deaths := utils.GetFloat(game, "deaths")
-				if kills == nil || deaths == nil || *deaths == 0 {
-					continue
-				}
-
-				rawScores, ok := game["scores"].([]any)
-				if !ok || len(rawScores) < 2 {
-					continue
-				}
-				allyScore, ok0 := rawScores[0].(float64)
-				enemyScore, ok1 := rawScores[1].(float64)
-				if !ok0 || !ok1 {
-					continue
-				}
-				if allyScore > enemyScore {
-					totalWins++
-				}
-
-				if raw, ok := game["preaim"].(float64); ok {
-					v := math.Round(raw*100*100) / 100
-					totalPreAim += v
-				}
-
-				gameReactionTime := utils.GetInt(game, "reactionTime")
-				totalReactionTime += *gameReactionTime
-
-				totalKdRatio += *kills / *deaths
-				matchCount++
-			}
-
-			if matchCount > 0 {
-				rawWinRate := int(math.Round(float64(totalWins) / float64(matchCount) * 100))
-				winRate = &rawWinRate
-				// for some users preaim and reaction time are 0 for some reason, just dont set these in that case
-				if totalPreAim != 0 && totalReactionTime != 0 {
-					rawPreAim := math.Round(totalPreAim/float64(matchCount)*100) / 100
-					preAim = &rawPreAim
-					rawReactionTime := totalReactionTime / matchCount
-					reactionTime = &rawReactionTime
-				}
-			}
 		}
 	} else {
 		name = utils.GetString(playerData, "name")
@@ -258,6 +195,92 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 			}
 			reactionTime = utils.GetInt(statsData, "reaction_time_ms")
 		}
+	}
+
+	if fallbackData != nil {
+		games, ok := fallbackData["games"].([]any)
+		if ok {
+			if pErr != nil {
+				gamesLen := len(games)
+				matches = &gamesLen
+				if gamesLen > 0 {
+					firstMatchData, ok := games[gamesLen-1].(map[string]any)
+					if ok {
+						firstMatch = utils.GetString(firstMatchData, "gameFinishedAt")
+					}
+				}
+			}
+
+			totalWins := 0
+			totalPreAim := 0.0
+			totalReactionTime := 0
+			totalKdRatio := 0.0
+			matchCount := 0
+
+			// prod api returns ALL the matches, we limit to 100 because thats the amount public api returns
+			limit := min(len(games), 100)
+			for _, g := range games[:limit] {
+				game, ok := g.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				kills := utils.GetFloat(game, "kills")
+				deaths := utils.GetFloat(game, "deaths")
+				if kills == nil || deaths == nil || *deaths == 0 {
+					continue
+				}
+
+				if pErr != nil {
+					rawScores, ok := game["scores"].([]any)
+					if ok && len(rawScores) >= 2 {
+						allyScore, ok0 := rawScores[0].(float64)
+						enemyScore, ok1 := rawScores[1].(float64)
+						if ok0 && ok1 && allyScore > enemyScore {
+							totalWins++
+						}
+					}
+
+					if raw, ok := game["preaim"].(float64); ok {
+						v := math.Round(raw*100*100) / 100
+						totalPreAim += v
+					}
+
+					gameReactionTime := utils.GetInt(game, "reactionTime")
+					totalReactionTime += *gameReactionTime
+
+				}
+
+				if mErr != nil {
+					totalKdRatio += *kills / *deaths
+				}
+
+				matchCount++
+			}
+
+			if matchCount > 0 {
+				if pErr != nil {
+					rawWinRate := int(math.Round(float64(totalWins) / float64(matchCount) * 100))
+					winRate = &rawWinRate
+					// for some users preaim and reaction time are 0 for some reason, just dont set these in that case
+					if totalPreAim != 0 && totalReactionTime != 0 {
+						rawPreAim := math.Round(totalPreAim/float64(matchCount)*100) / 100
+						preAim = &rawPreAim
+						rawReactionTime := totalReactionTime / matchCount
+						reactionTime = &rawReactionTime
+					}
+				}
+				if mErr != nil {
+					kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
+					kdRatio = &kd
+				}
+			}
+		}
+	}
+
+	if mErr != nil {
+		totalKdRatio := 0.0
+		matchCount := 0
 
 		for _, m := range rawMatches {
 			match, ok := m.(map[string]any)
@@ -281,11 +304,11 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 				matchCount++
 			}
 		}
-	}
 
-	if matchCount > 0 {
-		kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
-		kdRatio = &kd
+		if matchCount > 0 {
+			kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
+			kdRatio = &kd
+		}
 	}
 
 	return &Profile{
