@@ -3,13 +3,9 @@ package leetify
 import (
 	"context"
 	"errors"
-	"net/http"
-
-	// "errors"
 	"fmt"
 	"math"
-
-	// "net/http"
+	"net/http"
 
 	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
 	"github.com/dom1torii/cs2-profilestats-api/internal/utils"
