@@ -97,7 +97,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		recentRatings, ok := fallbackData["recentGameRatings"].(map[string]any)
 		if ok {
 			if raw, ok := recentRatings["leetify"].(float64); ok {
-				v := raw * 100
+				v := math.Round((raw*100)*100) / 100
 				leetifyRating = &v
 			}
 
