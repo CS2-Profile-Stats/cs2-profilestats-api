@@ -113,6 +113,26 @@ func (s *Server) handleFaceit(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, profile)
 }
 
+func (s *Server) handleCSRep(w http.ResponseWriter, r *http.Request) {
+	steamID := chi.URLParam(r, "steamID")
+
+	cacheKey := "csrep:" + steamID
+	if cached, ok := s.cache.Get(cacheKey); ok {
+		writeJSON(w, http.StatusOK, cached)
+		return
+	}
+
+	profile, err := s.csRep.GetProfile(r.Context(), steamID)
+	if err != nil {
+		writeApiError(w, err)
+		return
+	}
+
+	s.cache.Set(cacheKey, profile, 5*time.Minute)
+
+	writeJSON(w, http.StatusOK, profile)
+}
+
 func writeError(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }

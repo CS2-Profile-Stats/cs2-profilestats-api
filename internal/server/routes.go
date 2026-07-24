@@ -25,6 +25,7 @@ func (s *Server) routes() http.Handler {
 	r.Get("/api/stats/faceit/{steamID}", s.handleFaceit)
 	r.Get("/api/stats/leetify/{steamID}", s.handleLeetify)
 	r.Get("/api/stats/steam/{steamID}", s.handleSteam)
+	r.Get("/api/stats/csrep/{steamID}", s.handleCSRep)
 	r.Get("/api/resolveVanity/{vanity}", s.handleSteamId)
 
 	return r

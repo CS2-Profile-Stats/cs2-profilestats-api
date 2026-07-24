@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/joho/godotenv"
 	"os"
 
+	"github.com/joho/godotenv"
+
 	"github.com/dom1torii/cs2-profilestats-api/internal/cache"
+	"github.com/dom1torii/cs2-profilestats-api/internal/csrep"
 	"github.com/dom1torii/cs2-profilestats-api/internal/faceit"
 	"github.com/dom1torii/cs2-profilestats-api/internal/leetify"
 	"github.com/dom1torii/cs2-profilestats-api/internal/server"
@@ -23,6 +25,7 @@ func main() {
 		faceit.NewClient(os.Getenv("FACEIT_API_KEY")),
 		leetify.NewClient(os.Getenv("LEETIFY_API_KEY")),
 		steam.NewClient(os.Getenv("STEAM_API_KEY")),
+		csrep.NewClient(os.Getenv("CSREP_API_KEY")),
 		cache.New(),
 	)
 
