@@ -278,7 +278,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		}
 	}
 
-	if mErr != nil {
+	if mErr == nil {
 		totalKdRatio := 0.0
 		matchCount := 0
 
