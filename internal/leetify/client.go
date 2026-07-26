@@ -12,8 +12,9 @@ import (
 )
 
 type Profile struct {
-	Name  *string `json:"name"`
-	Stats *Stats  `json:"stats"`
+	Fallback bool    `json:"fallback"`
+	Name     *string `json:"name"`
+	Stats    *Stats  `json:"stats"`
 }
 
 type Stats struct {
@@ -51,6 +52,7 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	playerData, pErr := c.fetchPlayerData(ctx, steamId)
 	rawMatches, mErr := c.fetchPlayerMatches(ctx, steamId)
 
+	var fallback bool
 	var name *string
 
 	var premierRating *int
@@ -76,7 +78,8 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	if pErr != nil || mErr != nil {
 		// if fetching playerData or matches fails (no idea why it happens for some profiles),
-		// we use leetify prod api (please dont sue me)
+		// we use leetify prod api as a fallback (please dont sue me)
+		fallback = true
 
 		// combine errors, probably a bad solution, subject to change
 		combinedErr := errors.Join(pErr, mErr)
@@ -91,6 +94,8 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		if fbErr != nil {
 			return nil, fmt.Errorf("Failed fetching fallback for leetify data: %w", fbErr)
 		}
+	} else {
+		fallback = false
 	}
 
 	if pErr != nil {
@@ -308,7 +313,8 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	}
 
 	return &Profile{
-		Name: name,
+		Fallback: fallback,
+		Name:     name,
 		Stats: &Stats{
 			LeetifyRating:    leetifyRating,
 			PremierRating:    premierRating,
