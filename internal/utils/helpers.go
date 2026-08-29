@@ -21,6 +21,14 @@ func GetFloat(m map[string]any, key string) *float64 {
 	return &v
 }
 
+func GetBool(m map[string]any, key string) *bool {
+	v, ok := m[key].(bool)
+	if !ok {
+		return nil
+	}
+	return &v
+}
+
 func GetInt(m map[string]any, key string) *int {
 	v, ok := m[key].(float64)
 	if !ok {

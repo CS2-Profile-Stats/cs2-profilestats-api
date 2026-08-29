@@ -9,8 +9,9 @@ import (
 )
 
 type Profile struct {
-	Name  *string `json:"name"`
-	Stats *Stats  `json:"stats"`
+	Name     *string `json:"name"`
+	Redacted *bool   `json:"redacted"`
+	Stats    *Stats  `json:"stats"`
 }
 
 type Stats struct {
@@ -39,12 +40,14 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	}
 
 	var name *string
+	var redacted *bool
 	var premierRating *int
 	var trustRating *int
 	var competitiveRanks []CompetitiveRank
 	result, ok := playerData["result"].(map[string]any)
 	if ok {
 		name = utils.GetString(result, "name")
+		redacted = utils.GetBool(result, "redacted")
 		premierRating = utils.GetInt(result, "premier_elo")
 		trustRating = utils.GetInt(result, "trust_rating")
 
@@ -61,7 +64,8 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 	}
 
 	return &Profile{
-		Name: name,
+		Name:     name,
+		Redacted: redacted,
 		Stats: &Stats{
 			PremierRating:    premierRating,
 			TrustRating:      trustRating,
