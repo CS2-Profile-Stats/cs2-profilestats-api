@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
 
 	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
 	"github.com/dom1torii/cs2-profilestats-api/internal/utils"
@@ -48,6 +51,8 @@ func NewClient(apiKey string) *Client {
 	return &Client{Fetcher: fetcher.New(apiKey, "_leetify_key")}
 }
 
+var wingmanRankRegex = regexp.MustCompile(`\d+`)
+
 func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, error) {
 	playerData, pErr := c.fetchPlayerData(ctx, steamId)
 	rawMatches, mErr := c.fetchPlayerMatches(ctx, steamId)
@@ -76,17 +81,14 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 
 	var fallbackData map[string]any
 
-	if pErr != nil || mErr != nil {
+	if pErr != nil {
 		// if fetching playerData or matches fails (no idea why it happens for some profiles),
-		// we use leetify prod api as a fallback (please dont sue me)
+		// we use leetify extension api as a fallback (please dont sue me)
 		fallback = true
 
-		// combine errors, probably a bad solution, subject to change
-		combinedErr := errors.Join(pErr, mErr)
-
 		var apiErr *fetcher.APIError
-		if !errors.As(combinedErr, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
-			return nil, fmt.Errorf("Failed fetching leetify data: %w", combinedErr)
+		if !errors.As(pErr, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return nil, fmt.Errorf("failed fetching leetify profile: %w", pErr)
 		}
 
 		var fbErr error
@@ -94,48 +96,123 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 		if fbErr != nil {
 			return nil, fmt.Errorf("Failed fetching fallback for leetify data: %w", fbErr)
 		}
-	} else {
-		fallback = false
-	}
 
-	if pErr != nil {
-		recentRatings, ok := fallbackData["recentGameRatings"].(map[string]any)
+		/* Missing: name, positioning, clutch, opening, first match, total matches */
+		ratings, ok := fallbackData["ratings"].([]any)
 		if ok {
-			if raw, ok := recentRatings["leetify"].(float64); ok {
-				v := math.Round((raw*100)*100) / 100
-				leetifyRating = &v
-			}
+			for _, r := range ratings {
+				rating, ok := r.(map[string]any)
+				if !ok {
+					continue
+				}
 
-			if raw, ok := recentRatings["aim"].(float64); ok {
-				v := int(math.Round(raw))
-				aimRating = &v
-			}
+				title, ok := rating["title"].(string)
+				if !ok {
+					continue
+				}
 
-			if raw, ok := recentRatings["positioning"].(float64); ok {
-				v := int(math.Round(raw))
-				positioning = &v
-			}
-
-			if raw, ok := recentRatings["utility"].(float64); ok {
-				v := int(math.Round(raw))
-				utility = &v
-			}
-
-			if raw, ok := recentRatings["clutch"].(float64); ok {
-				v := math.Round(raw*100*100) / 100
-				clutching = &v
-			}
-
-			if raw, ok := recentRatings["opening"].(float64); ok {
-				v := math.Round(raw*100*100) / 100
-				opening = &v
+				switch title {
+				case "Leetify Rating":
+					leetifyRating = utils.GetFloatFromString(rating, "value")
+				case "Aim Rating":
+					aimRating = utils.GetIntFromString(rating, "value")
+				case "Utility Rating":
+					utility = utils.GetIntFromString(rating, "value")
+				}
 			}
 		}
 
-		meta, ok := fallbackData["meta"].(map[string]any)
+		winRateMap, ok := fallbackData["winRate"].(map[string]any)
 		if ok {
-			name = utils.GetString(meta, "name")
+			winRateValue := utils.GetString(winRateMap, "value")
+			if winRateValue != nil {
+				v, err := strconv.Atoi(strings.TrimSuffix(*winRateValue, "%"))
+				if err != nil {
+					winRate = nil
+				} else {
+					winRate = &v
+				}
+			}
 		}
+
+		aimRatingSkills, ok := fallbackData["aimRatingSkills"].([]any)
+		if ok {
+			for _, s := range aimRatingSkills {
+				skill, ok := s.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				title, ok := skill["title"].(string)
+				if !ok {
+					continue
+				}
+
+				switch title {
+				case "Crosshair Placement":
+					preAimValue := utils.GetString(skill, "value")
+					if preAimValue != nil {
+						v, err := strconv.ParseFloat(strings.TrimSuffix(*preAimValue, "°"), 64)
+						if err != nil {
+							preAim = nil
+						} else {
+							preAim = &v
+						}
+
+					}
+				case "Time to Damage":
+					reactionValue := utils.GetString(skill, "value")
+					if reactionValue != nil {
+						v, err := strconv.Atoi(strings.TrimSuffix(*reactionValue, "ms"))
+						if err != nil {
+							reactionTime = nil
+						} else {
+							reactionTime = &v
+						}
+					}
+				}
+			}
+		}
+
+		ranks, ok := fallbackData["ranks"].([]any)
+		if ok {
+			for _, r := range ranks {
+				rank, ok := r.(map[string]any)
+				if !ok {
+					continue
+				}
+
+				source, ok := rank["dataSource"].(string)
+				if !ok {
+					continue
+				}
+
+				switch source {
+				case "Premier":
+					latest, ok := rank["latest"].(map[string]any)
+					if ok {
+						premierRating = utils.GetInt(latest, "value")
+					}
+				case "Wingman":
+					latest, ok := rank["latest"].(map[string]any)
+					if !ok {
+						continue
+					}
+					url := utils.GetString(latest, "imageUrl")
+					if url == nil {
+						continue
+					}
+					match := wingmanRankRegex.FindString(*url)
+					v, err := strconv.Atoi(match)
+					if err != nil {
+						wingmanRank = nil
+					} else {
+						wingmanRank = &v
+					}
+				}
+			}
+		}
+
 	} else {
 		name = utils.GetString(playerData, "name")
 
@@ -196,90 +273,27 @@ func (c *Client) GetProfile(ctx context.Context, steamId string) (*Profile, erro
 			}
 			reactionTime = utils.GetInt(statsData, "reaction_time_ms")
 		}
+
 	}
 
-	if fallbackData != nil {
-		games, ok := fallbackData["games"].([]any)
-		if ok {
-			if pErr != nil {
-				gamesLen := len(games)
-				matches = &gamesLen
-				if gamesLen > 0 {
-					firstMatchData, ok := games[gamesLen-1].(map[string]any)
-					if ok {
-						firstMatch = utils.GetString(firstMatchData, "gameFinishedAt")
-					}
-				}
-			}
-
-			totalWins := 0
-			totalPreAim := 0.0
-			totalReactionTime := 0
-			totalKdRatio := 0.0
-			matchCount := 0
-
-			// prod api returns ALL the matches, we limit to 100 because thats the amount public api returns
-			limit := min(len(games), 100)
-			for _, g := range games[:limit] {
-				game, ok := g.(map[string]any)
-				if !ok {
-					continue
-				}
-
-				kills := utils.GetFloat(game, "kills")
-				deaths := utils.GetFloat(game, "deaths")
-				if kills == nil || deaths == nil || *deaths == 0 {
-					continue
-				}
-
-				if pErr != nil {
-					rawScores, ok := game["scores"].([]any)
-					if ok && len(rawScores) >= 2 {
-						allyScore, ok0 := rawScores[0].(float64)
-						enemyScore, ok1 := rawScores[1].(float64)
-						if ok0 && ok1 && allyScore > enemyScore {
-							totalWins++
-						}
-					}
-
-					if raw, ok := game["preaim"].(float64); ok {
-						v := math.Round(raw*100*100) / 100
-						totalPreAim += v
-					}
-
-					gameReactionTime := utils.GetInt(game, "reactionTime")
-					totalReactionTime += *gameReactionTime
-
-				}
-
-				if mErr != nil {
-					totalKdRatio += *kills / *deaths
-				}
-
-				matchCount++
-			}
-
-			if matchCount > 0 {
-				if pErr != nil {
-					rawWinRate := int(math.Round(float64(totalWins) / float64(matchCount) * 100))
-					winRate = &rawWinRate
-					// for some users preaim and reaction time are 0 for some reason, just dont set these in that case
-					if totalPreAim != 0 && totalReactionTime != 0 {
-						rawPreAim := math.Round(totalPreAim/float64(matchCount)*100) / 100
-						preAim = &rawPreAim
-						rawReactionTime := totalReactionTime / matchCount
-						reactionTime = &rawReactionTime
-					}
-				}
-				if mErr != nil {
-					kd := math.Round(totalKdRatio/float64(matchCount)*100) / 100
-					kdRatio = &kd
-				}
+	if mErr != nil {
+		var apiErr *fetcher.APIError
+		if !errors.As(mErr, &apiErr) || apiErr.StatusCode != http.StatusNotFound {
+			return nil, fmt.Errorf("failed fetching leetify matches: %w", mErr)
+		}
+		// only fetch fallbackData here if we don't already have it from the pErr branch
+		if fallbackData == nil {
+			var fbErr error
+			fallbackData, fbErr = c.fetchFallbackData(ctx, steamId)
+			if fbErr != nil {
+				return nil, fmt.Errorf("failed fetching fallback for leetify data: %w", fbErr)
 			}
 		}
-	}
-
-	if mErr == nil {
+		kdMap, ok := fallbackData["kdRatio"].(map[string]any)
+		if ok {
+			kdRatio = utils.GetFloatFromString(kdMap, "value")
+		}
+	} else {
 		totalKdRatio := 0.0
 		matchCount := 0
 
@@ -346,6 +360,6 @@ func (c *Client) fetchPlayerMatches(ctx context.Context, steamID string) ([]any,
 }
 
 func (c *Client) fetchFallbackData(ctx context.Context, steamID string) (map[string]any, error) {
-	url := fmt.Sprintf("https://api.cs-prod.leetify.com/api/profile/id/%s", steamID)
+	url := fmt.Sprintf("https://api.cs-prod.leetify.com/api/profile/%s/browser-extension-summary", steamID)
 	return c.Fetch(ctx, url)
 }
