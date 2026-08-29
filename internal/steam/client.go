@@ -3,6 +3,7 @@ package steam
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/dom1torii/cs2-profilestats-api/internal/fetcher"
@@ -14,6 +15,7 @@ type Profile struct {
 	Registered        *string `json:"registered"`
 	CS2Playtime       *int    `json:"cs2_playtime"`
 	CS2Playtime2Weeks *int    `json:"cs2_playtime_2weeks"`
+	CS2FriendCode     *string `json:"cs2_friend_code"`
 	CommunityBanned   *bool   `json:"community_banned"`
 }
 
@@ -48,6 +50,12 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 	player, ok := players[0].(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("Player data is missing")
+	}
+
+	var cs2FriendCode *string
+	if id64, err := strconv.ParseUint(steamID, 10, 64); err == nil {
+		code := steamIdToFriendCode(id64)
+		cs2FriendCode = &code
 	}
 
 	name := utils.GetString(player, "personaname")
@@ -98,6 +106,7 @@ func (c *Client) GetProfile(ctx context.Context, steamID string) (*Profile, erro
 		Registered:        registered,
 		CS2Playtime:       playtime,
 		CS2Playtime2Weeks: playtime2Weeks,
+		CS2FriendCode:     cs2FriendCode,
 		CommunityBanned:   communityBanned,
 	}, nil
 }
