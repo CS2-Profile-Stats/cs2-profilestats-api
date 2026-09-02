@@ -226,11 +226,13 @@ func (c *Client) GetProfile(ctx context.Context, game string, matchLimit string,
 	}
 
 	var lastMatch *string
-	lastMatchItem, ok := matchesItems[0].(map[string]any)
-	if ok {
-		stats, ok := lastMatchItem["stats"].(map[string]any)
+	if len(matchesItems) > 0 {
+		lastMatchItem, ok := matchesItems[0].(map[string]any)
 		if ok {
-			lastMatch = utils.GetString(stats, "Updated At")
+			stats, ok := lastMatchItem["stats"].(map[string]any)
+			if ok {
+				lastMatch = utils.GetString(stats, "Updated At")
+			}
 		}
 	}
 
